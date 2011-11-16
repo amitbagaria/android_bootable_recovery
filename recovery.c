@@ -753,6 +753,9 @@ prompt_and_wait() {
             case ITEM_ADVANCED:
                 show_advanced_menu();
                 break;
+            case ITEM_CFROOT:
+                show_cfroot_menu();
+                break;
             case ITEM_POWEROFF:
                 poweroff=1;
                 return;

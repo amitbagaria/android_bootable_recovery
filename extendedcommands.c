@@ -1060,6 +1060,50 @@ void show_advanced_menu()
     }
 }
 
+void show_cfroot_menu()
+{
+    ensure_path_mounted("/system");
+    ensure_path_mounted("/data"); 
+    
+    static char* headers[] = { "CF-Root options",
+                               "",
+                               NULL
+    };
+
+    static char* list[] = { "Root me!",
+                            "Unroot me!",
+                             NULL
+    };
+
+   for (;;)
+    {
+        int chosen_item = get_menu_selection(headers, list, 0, 0);
+        if (chosen_item == GO_BACK)
+            break;
+        switch (chosen_item)
+        {
+            case 0:
+            {
+                __system("/res/root/su -c \"/sbin/busybox cp /res/root/Superuser.apk /system/app/Superuser.apk\"");
+                __system("/res/root/su -c \"/sbin/busybox chown 0.0 /system/app/Superuser.apk\"");
+                __system("/res/root/su -c \"/sbin/busybox chmod 644 /system/app/Superuser.apk\"");
+                __system("/res/root/su -c \"/sbin/busybox cp /res/root/su /system/xbin/su\"");
+                __system("/res/root/su -c \"/sbin/busybox chown 0.0 /system/xbin/su\"");
+                __system("/res/root/su -c \"/sbin/busybox chmod 6755 /system/xbin/su\"");
+                ui_print("You are now rooted :)\n"); 
+                break;
+            }
+            case 2:
+            {
+                remove("/system/app/Superuser.apk");
+                remove("/system/xbin/su");
+                ui_print("Unrooted :)");
+                break;
+            }
+       }
+   }
+}
+
 void write_fstab_root(char *path, FILE *file)
 {
     Volume *vol = volume_for_path(path);

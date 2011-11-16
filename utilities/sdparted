@@ -1,7 +1,8 @@
 #!/sbin/sh
 
 # do logging, if not excluded with -x
-LOGFILE="/data/sdparted.log"
+LOGFILE="/cache/recovery/sdparted.log"
+[ "$1" != "-x" ] && mkdir -p `dirname "$LOGFILE"`
 [ "$1" != "-x" ] && echo "$0" "$@" >> "$LOGFILE" && "$0" -x "$@" 2>&1 | tee -a "$LOGFILE" && exit
 shift
 
@@ -301,7 +302,7 @@ ShowCardInfo() {
 		echo
 		parted "$SDPATH" print
 		echo
-		echo "script log is located @ /data/sdparted.log"
+		echo "script log is located @ $LOGFILE"
 		exit 0
 	else
 		echo
