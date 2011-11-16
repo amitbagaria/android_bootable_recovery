@@ -194,7 +194,7 @@ fp_start()
          DATAMOUNT=1
       fi
       
-      if $TEST -e /dev/block/mmcblk0p2 && $TEST $( $GREP -c " $SD_EXT_DIRECTORY " "/proc/mounts" ) -eq 0; then
+      if $TEST -e /dev/block/mmcblk1p2 && $TEST $( $GREP -c " $SD_EXT_DIRECTORY " "/proc/mounts" ) -eq 0; then
          $MOUNT $SD_EXT_DIRECTORY > /dev/null 2>&1
          SYSSDMOUNT=1
       fi
@@ -456,9 +456,9 @@ fp_end()
       $UMOUNT $SD_EXT_DIRECTORY > /dev/null 2>&1
    fi
    
-   if $TEST $SYSMOUNT -eq 1; then
-      $UMOUNT /system > /dev/null 2>&1
-   fi
+#  if $TEST $SYSMOUNT -eq 1; then
+#     $UMOUNT /system > /dev/null 2>&1
+#  fi
    
    if $TEST $DATAMOUNT -eq 1; then
       $UMOUNT /data > /dev/null 2>&1
