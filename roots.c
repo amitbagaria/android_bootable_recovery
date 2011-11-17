@@ -316,6 +316,18 @@ int format_volume(const char* volume) {
         return format_unknown_device(v->device, volume, NULL);
     }
 
+    // force the "rm -rf" method
+    int rmrf_format=0;
+
+    #ifdef NEVER_FORMAT_PARTITIONS
+    rmrf_format=1;
+    #endif
+
+    if (rmrf_format) {
+        // use directly the "rm -rf" method
+        return format_unknown_device(v->device, volume, v->fs_type);
+    }
+
     if (ensure_path_unmounted(volume) != 0) {
         LOGE("format_volume failed to unmount \"%s\"\n", v->mount_point);
         return -1;

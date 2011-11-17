@@ -510,59 +510,82 @@ int format_device(const char *device, const char *path, const char *fs_type) {
 
 int format_unknown_device(const char *device, const char* path, const char *fs_type)
 {
-    LOGI("Formatting unknown device.\n");
+    int do_format = is_safe_to_format((char*) path);
 
-    if (fs_type != NULL && get_flash_type(fs_type) != UNSUPPORTED)
-        return erase_raw_partition(fs_type, device);
+#ifdef NEVER_FORMAT_PARTITIONS
+    do_format = 0;
+#endif
 
-    // if this is SDEXT:, don't worry about it if it does not exist.
-    if (0 == strcmp(path, "/sd-ext"))
-    {
-        struct stat st;
-        Volume *vol = volume_for_path("/sd-ext");
-        if (vol == NULL || 0 != stat(vol->device, &st))
+    if (do_format) {
+
+        LOGI("Formatting unknown device.\n");
+
+        // device may simply be a name, like "system"
+        if (fs_type != NULL && get_flash_type(fs_type) != UNSUPPORTED)
+            return erase_raw_partition(fs_type, device);
+
+        // if this is SDEXT:, don't worry about it if it does not exist.
+        if (0 == strcmp(path, "/sd-ext"))
         {
-            ui_print("No app2sd partition found. Skipping format of /sd-ext.\n");
+            struct stat st;
+            Volume *vol = volume_for_path("/sd-ext");
+            if (vol == NULL || 0 != stat(vol->device, &st))
+            {
+                ui_print("No app2sd partition found. Skipping format of /sd-ext.\n");
+                return 0;
+            }
+        }
+
+        if (NULL != fs_type) {
+            if (strcmp("ext3", fs_type) == 0) {
+                LOGI("Formatting ext3 device.\n");
+                if (0 != ensure_path_unmounted(path)) {
+                    LOGE("Error while unmounting %s.\n", path);
+                    return -12;
+                }
+                return format_ext3_device(device);
+            }
+
+            if (strcmp("ext2", fs_type) == 0) {
+                LOGI("Formatting ext2 device.\n");
+                if (0 != ensure_path_unmounted(path)) {
+                    LOGE("Error while unmounting %s.\n", path);
+                    return -12;
+                }
+                return format_ext2_device(device);
+            }
+        }
+
+    } else {
+
+        //dont do_format
+        LOGI("Erasing from device...\n");
+        if (strlen(path) < 2) {
+            ui_print("Bad path : %s \n", path);
             return 0;
         }
-    }
 
-    if (NULL != fs_type) {
-        if (strcmp("ext3", fs_type) == 0) {
-            LOGI("Formatting ext3 device.\n");
-            if (0 != ensure_path_unmounted(path)) {
-                LOGE("Error while unmounting %s.\n", path);
-                return -12;
-            }
-            return format_ext3_device(device);
-        }
-
-        if (strcmp("ext2", fs_type) == 0) {
-            LOGI("Formatting ext2 device.\n");
-            if (0 != ensure_path_unmounted(path)) {
-                LOGE("Error while unmounting %s.\n", path);
-                return -12;
-            }
-            return format_ext2_device(device);
-        }
     }
 
     if (0 != ensure_path_mounted(path))
     {
-        ui_print("Error mounting %s!\n", path);
-        ui_print("Skipping format...\n");
+        if (strcmp(path, "/boot") != 0) {
+            //boot is not a folder...
+            LOGW("Error mounting %s!\n", path);
+            LOGI("Skipping format...\n");
+        }
         return 0;
     }
 
     static char tmp[PATH_MAX];
     if (strcmp(path, "/data") == 0) {
-        sprintf(tmp, "cd /data ; for f in $(ls -a | grep -v ^media$); do rm -rf $f; done");
+        sprintf(tmp, "cd /data ; for f in $(ls -a | grep -v ^media$); do rm -rf $f >>/tmp/recovery.log; done");
         __system(tmp);
     }
     else {
-        sprintf(tmp, "rm -rf %s/*", path);
+        sprintf(tmp, "rm -rf %s/* 2>>/tmp/recovery.log", path);
         __system(tmp);
-        sprintf(tmp, "rm -rf %s/.*", path);
+        sprintf(tmp, "rm -rf %s/.* 2>>/tmp/recovery.log", path);
         __system(tmp);
     }
 
