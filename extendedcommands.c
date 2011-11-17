@@ -74,7 +74,7 @@ int install_zip(const char* packagefilepath)
         ui_print("Installation aborted.\n");
         return 1;
     }
-    ui_set_background(BACKGROUND_ICON_NONE);
+    ui_set_background(BACKGROUND_ICON_CLOCKWORK);
     ui_print("\nInstall from sdcard complete.\n");
     return 0;
 }
@@ -769,6 +769,13 @@ void show_nandroid_advanced_restore_menu(const char* path)
         list[5] = NULL;
     }
 
+    struct stat st;
+    Volume *vol = volume_for_path("/sd-ext");
+    if (vol == NULL || 0 != stat(vol->device, &st))
+        // disable sd-ext restore option
+        list[4] = NULL;
+    }
+
     static char* confirm_restore  = "Confirm restore?";
 
     int chosen_item = get_menu_selection(headers, list, 0, 0);
@@ -894,7 +901,7 @@ void show_advanced_menu()
                             "Wipe Battery Stats",
                             "Report Error",
                             "Key Test",
-                            "Show log",
+                            "Show Log",
 #ifndef BOARD_HAS_SMALL_RECOVERY
                             "Partition SD Card",
                             "Fix Permissions",
@@ -921,15 +928,16 @@ void show_advanced_menu()
             {
                 if (0 != ensure_path_mounted("/data"))
                     break;
-                ensure_path_mounted("/sd-ext");
                 ensure_path_mounted("/cache");
                 if (confirm_selection( "Confirm wipe?", "Yes - Wipe Dalvik Cache")) {
                     __system("rm -r /data/dalvik-cache");
                     __system("rm -r /cache/dalvik-cache");
+                    if (ensure_path_mounted("/sd-ext") == 0) {
                     __system("rm -r /sd-ext/dalvik-cache");
+                    }
                     ui_print("Dalvik Cache wiped.\n");
                 }
-                ensure_path_unmounted("/data");
+                //ensure_path_unmounted("/data");
                 break;
             }
             case 2:
@@ -939,8 +947,10 @@ void show_advanced_menu()
                 break;
             }
             case 3:
+            {
                 handle_failure(1);
                 break;
+            }
             case 4:
             {
                 ui_print("Outputting key codes.\n");
@@ -1211,7 +1221,13 @@ void process_volumes() {
     ui_print("in case of error.\n");
 
     nandroid_backup(backup_path);
-    nandroid_restore(backup_path, 1, 1, 1, 1, 1, 0);
+    struct stat st;
+    Volume *vol = volume_for_path("/sd-ext");
+    if (vol == NULL || 0 != stat(vol->device, &st))
+		    nandroid_restore(backup_path, 1, 1, 1, 1, 0, 0);
+    else
+		    nandroid_restore(backup_path, 1, 1, 1, 1, 1, 0);
+    
     ui_set_show_text(0);
 }
 

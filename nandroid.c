@@ -85,7 +85,7 @@ static void yaffs_callback(const char* filename)
 static void compute_directory_stats(const char* directory)
 {
     char tmp[PATH_MAX];
-    sprintf(tmp, "find %s | wc -l > /tmp/dircount", directory);
+    sprintf(tmp, "find '%s' | wc -l > /tmp/dircount", directory);
     __system(tmp);
     char count_text[100];
     FILE* f = fopen("/tmp/dircount", "r");
@@ -109,9 +109,9 @@ static int mkyaffs2image_wrapper(const char* backup_path, const char* backup_fil
 static int tar_compress_wrapper(const char* backup_path, const char* backup_file_image, int callback) {
     char tmp[PATH_MAX];
     if (strcmp(backup_path, "/data") == 0 && volume_for_path("/sdcard") == NULL)
-      sprintf(tmp, "cd $(dirname %s) ; tar cvf %s.tar --exclude 'media' $(basename %s) ; exit $?", backup_path, backup_file_image, backup_path);
+      sprintf(tmp, "cd $(dirname %s) ; tar cvf '%s.tar' --exclude 'media' $(basename %s) ; exit $?", backup_path, backup_file_image, backup_path);
     else
-      sprintf(tmp, "cd $(dirname %s) ; tar cvf %s.tar $(basename %s) ; exit $?", backup_path, backup_file_image, backup_path);
+      sprintf(tmp, "cd $(dirname %s) ; tar cvf '%s.tar' $(basename %s) ; exit $?", backup_path, backup_file_image, backup_path);
 
     FILE *fp = __popen(tmp, "r");
     if (fp == NULL) {
@@ -297,7 +297,7 @@ int nandroid_backup(const char* backup_path)
     vol = volume_for_path("/sd-ext");
     if (vol == NULL || 0 != stat(vol->device, &s))
     {
-        ui_print("No sd-ext found. Skipping backup of sd-ext.\n");
+        //ui_print("No sd-ext found. Skipping backup of sd-ext.\n");
     }
     else
     {
@@ -315,7 +315,7 @@ int nandroid_backup(const char* backup_path)
     }
     
     sync();
-    ui_set_background(BACKGROUND_ICON_NONE);
+    ui_set_background(BACKGROUND_ICON_CLOCKWORK);
     ui_reset_progress();
     ui_print("\nBackup complete!\n");
     return 0;
@@ -337,7 +337,7 @@ static int unyaffs_wrapper(const char* backup_file_image, const char* backup_pat
 
 static int tar_extract_wrapper(const char* backup_file_image, const char* backup_path, int callback) {
     char tmp[PATH_MAX];
-    sprintf(tmp, "cd $(dirname %s) ; tar xvf %s ; exit $?", backup_path, backup_file_image);
+    sprintf(tmp, "cd $(dirname %s) ; tar xvf '%s' ; exit $?", backup_path, backup_file_image);
 
     char path[PATH_MAX];
     FILE *fp = __popen(tmp, "r");
@@ -424,7 +424,7 @@ int nandroid_restore_partition_extended(const char* backup_path, const char* mou
         }
 
         if (backup_filesystem == NULL || restore_handler == NULL) {
-            ui_print("%s.img not found. Skipping restore of %s.\n", name, mount_point);
+            ui_print("%s.img not found.\nSkipping restore of %s.\n", name, mount_point);
             return 0;
         }
         else {
@@ -450,12 +450,13 @@ int nandroid_restore_partition_extended(const char* backup_path, const char* mou
     ui_print("Restoring %s...\n", name);
     if (backup_filesystem == NULL) {
         if (0 != (ret = format_volume(mount_point))) {
-            ui_print("Error while formatting %s!\n", mount_point);
+            ui_print("Error while formatting volume %s!\n", mount_point);
             return ret;
         }
     }
     else if (0 != (ret = format_device(device, mount_point, backup_filesystem))) {
-        ui_print("Error while formatting %s!\n", mount_point);
+        ui_print("Error while formatting device %s!\n", mount_point);
+        ui_printlogtail(4);
         return ret;
     }
 
@@ -582,7 +583,7 @@ int nandroid_restore(const char* backup_path, int restore_boot, int restore_syst
         return ret;
 
     sync();
-    ui_set_background(BACKGROUND_ICON_NONE);
+    ui_set_background(BACKGROUND_ICON_CLOCKWORK);
     ui_reset_progress();
     ui_print("\nRestore complete!\n");
     return 0;
@@ -614,7 +615,12 @@ int nandroid_main(int argc, char** argv)
     {
         if (argc != 3)
             return nandroid_usage();
-        return nandroid_restore(argv[2], 1, 1, 1, 1, 1, 0);
+        struct stat st;
+        Volume *vol = volume_for_path("/sd-ext");
+        if (vol == NULL || 0 != stat(vol->device, &st))
+		        return nandroid_restore(argv[2], 1, 1, 1, 1, 0, 0);
+        else
+		        return nandroid_restore(argv[2], 1, 1, 1, 1, 1, 0);
     }
     
     return nandroid_usage();

@@ -38,7 +38,7 @@ static int gShowBackButton = 0;
 #endif
 
 #define MAX_COLS 96
-#define MAX_ROWS 32
+#define MAX_ROWS 48
 
 #define MENU_MAX_COLS 64
 #define MENU_MAX_ROWS 250
@@ -170,8 +170,11 @@ static void draw_text_line(int row, const char* t) {
   }
 }
 
-//#define MENU_TEXT_COLOR 255, 160, 49, 255
-#define MENU_TEXT_COLOR 0, 191, 255, 255
+//#define MENU_TEXT_COLOR 255, 160, 49, 255 //orange
+//#define MENU_TEXT_COLOR 255, 1, 1, 200 //blue
+//#define MENU_TEXT_COLOR 7, 255, 1, 255 //lime
+
+#define MENU_TEXT_COLOR 0, 191, 255, 255 //cyan
 #define NORMAL_TEXT_COLOR 200, 200, 200, 255
 #define HEADER_TEXT_COLOR NORMAL_TEXT_COLOR
 
@@ -223,6 +226,7 @@ static void draw_screen_locked(void)
         }
 
         gr_color(NORMAL_TEXT_COLOR);
+        row++;
         for (; row < text_rows; ++row) {
             draw_text_line(row, text[(row+text_top) % text_rows]);
         }
