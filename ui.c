@@ -38,7 +38,7 @@ static int gShowBackButton = 0;
 #endif
 
 #define MAX_COLS 96
-#define MAX_ROWS 48
+#define MAX_ROWS 32
 
 #define MENU_MAX_COLS 64
 #define MENU_MAX_ROWS 250
@@ -226,7 +226,6 @@ static void draw_screen_locked(void)
         }
 
         gr_color(NORMAL_TEXT_COLOR);
-        row++;
         for (; row < text_rows; ++row) {
             draw_text_line(row, text[(row+text_top) % text_rows]);
         }

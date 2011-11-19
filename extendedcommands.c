@@ -451,6 +451,18 @@ int format_device(const char *device, const char *path, const char *fs_type) {
         return -1;
     }
 
+    // force the "rm -rf" method
+    int rmrf_format=0;
+
+    #ifdef NEVER_FORMAT_PARTITIONS
+    rmrf_format=1;
+    #endif
+
+    if (rmrf_format) {
+        // use directly the "rm -rf" method
+        return format_unknown_device(device, path, fs_type);
+    }
+
     if (strcmp(fs_type, "rfs") == 0) {
         if (ensure_path_unmounted(path) != 0) {
             LOGE("format_volume failed to unmount \"%s\"\n", v->mount_point);
@@ -794,7 +806,7 @@ void show_nandroid_advanced_restore_menu(const char* path)
 
     struct stat st;
     Volume *vol = volume_for_path("/sd-ext");
-    if (vol == NULL || 0 != stat(vol->device, &st))
+    if (vol == NULL || 0 != stat(vol->device, &st)) {
         // disable sd-ext restore option
         list[4] = NULL;
     }
@@ -955,7 +967,9 @@ void show_advanced_menu()
                 if (confirm_selection( "Confirm wipe?", "Yes - Wipe Dalvik Cache")) {
                     __system("rm -r /data/dalvik-cache");
                     __system("rm -r /cache/dalvik-cache");
-                    if (ensure_path_mounted("/sd-ext") == 0) {
+                    struct stat st;
+                    Volume *vol = volume_for_path("/sd-ext");
+                    if (vol == NULL || 0 != stat(vol->device, &st)) {
                     __system("rm -r /sd-ext/dalvik-cache");
                     }
                     ui_print("Dalvik Cache wiped.\n");
