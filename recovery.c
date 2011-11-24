@@ -331,8 +331,10 @@ erase_volume(const char *volume) {
         // log.
         tmplog_offset = 0;
     }
-
-    return format_volume(volume);
+    int ret = format_volume(volume);
+    if (ret) ui_set_background(BACKGROUND_ICON_ERROR);
+    else ui_set_background(BACKGROUND_ICON_CLOCKWORK);
+    return ret;
 }
 
 static char*
@@ -650,8 +652,11 @@ wipe_data(int confirm) {
     if (confirm) {
         static char** title_headers = NULL;
 
+    char* battmsg = battery_level_message();
+
         if (title_headers == NULL) {
             char* headers[] = { "Confirm wipe of all user data?",
+                                battmsg,
                                 "  THIS CAN NOT BE UNDONE.",
                                 "",
                                 NULL };
@@ -684,7 +689,10 @@ wipe_data(int confirm) {
     if (has_datadata()) {
         erase_volume("/datadata");
     }
-    erase_volume("/sd-ext");
+    struct stat st;
+    Volume *vol = volume_for_path("/sd-ext");
+    if (vol != NULL && 0 == stat(vol->device, &st))
+        erase_volume("/sd-ext");
     erase_volume("/sdcard/.android_secure");
     ui_print("Data wipe complete.\n");
 }

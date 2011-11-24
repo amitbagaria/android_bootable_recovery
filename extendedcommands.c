@@ -48,8 +48,7 @@ int signature_check_enabled = 1;
 int script_assert_enabled = 1;
 static const char *SDCARD_UPDATE_FILE = "/sdcard/update.zip";
 
-void
-toggle_signature_check()
+void toggle_signature_check()
 {
     signature_check_enabled = !signature_check_enabled;
     ui_print("Signature Check: %s\n", signature_check_enabled ? "Enabled" : "Disabled");
@@ -376,7 +375,7 @@ void show_mount_usb_storage_menu()
         return -1;
     }
     static char* headers[] = {  "USB Mass Storage device",
-                                "Leaving this menu unmount",
+                                "Leaving this menu will unmount",
                                 "your SD card from your PC.",
                                 "",
                                 NULL
@@ -410,7 +409,9 @@ int confirm_selection(const char* title, const char* confirm)
     if (0 == stat("/sdcard/clockworkmod/.no_confirm", &info))
         return 1;
 
-    char* confirm_headers[]  = {  title, "  THIS CAN NOT BE UNDONE.", "", NULL };
+    char* battmsg = battery_level_message();
+
+    char* confirm_headers[]  = {  title, battmsg, "  THIS CAN NOT BE UNDONE.", "", NULL };
 	if (0 == stat("/sdcard/clockworkmod/.one_confirm", &info)) {
 		char* items[] = { "No",
 						confirm, //" Yes -- wipe partition",   // [1]
@@ -771,6 +772,94 @@ void show_partition_menu()
 
 }
 
+void show_nandroid_advanced_backup_menu(const char* path)
+{
+    static char* advancedheaders[] = { "Choose the partitions to backup.",
+                                       NULL
+    };
+
+    int sdext = 0;
+    struct stat st;
+    Volume *vol = volume_for_path("/sd-ext");
+    if (vol != NULL && 0 == stat(vol->device, &st))
+		    sdext = 1;
+
+    int backup_list[4];
+    char* list[6 + sdext];
+
+    backup_list[0] = 1;
+    backup_list[1] = 1;
+    backup_list[2] = 1;
+    backup_list[3] = 1;
+    if (sdext == 1)
+        backup_list[4] = 1;
+    else
+        backup_list[4] = 0;
+
+    int cont = 1;
+    for (;cont;) {
+        if (backup_list[0] == 1)
+            list[0] = "Backup boot: Yes";
+        else
+            list[0] = "Backup boot: No";
+    
+        if (backup_list[1] == 1)
+            list[1] = "Backup system: Yes";
+        else
+            list[1] = "Backup system: No";
+
+        if (backup_list[2] == 1)
+            list[2] = "Backup data: Yes";
+        else
+            list[2] = "Backup data: No";   
+
+        if (backup_list[3] == 1)
+            list[3] = "Backup cache: Yes";
+        else
+            list[3] = "Backup cache: No";   
+
+        if (sdext == 1) {
+            if (backup_list[4] == 1)
+                list[4] = "Backup sd-ext: Yes";
+            else
+                list[4] = "Backup sd-ext: No";   
+        }
+
+        int chosen_item = get_menu_selection(advancedheaders, list, 0, 0);
+        switch (chosen_item) {
+            case GO_BACK: return;
+            case 0: backup_list[0] = !backup_list[0];
+                break;
+            case 1: backup_list[1] = !backup_list[1];
+                break;
+            case 2: backup_list[2] = !backup_list[2];
+                break;
+            case 3: backup_list[3] = !backup_list[3];
+                break;
+            case 4: backup_list[4] = !backup_list[4];
+                break;
+            default: cont = 0;
+                break;
+        }
+    }
+
+    list[4 + sdext] = "Perform Backup";
+    list[5 + sdext] = NULL;
+
+    char backup_path[PATH_MAX];
+    time_t t = time(NULL);
+    struct tm *tmp = localtime(&t);
+    if (tmp == NULL) {
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        sprintf(backup_path, "/sdcard/clockworkmod/backup/%d", tp.tv_sec);
+    }
+    else
+        strftime(backup_path, sizeof(backup_path), "/sdcard/clockworkmod/backup/%F.%H.%M.%S", tmp);
+
+    return nandroid_advanced_backup(backup_path, backup_list[0], backup_list[1], backup_list[2], backup_list[3], backup_list[4], 0);
+}
+
 void show_nandroid_advanced_restore_menu(const char* path)
 {
     if (ensure_path_mounted(path) != 0) {
@@ -782,7 +871,7 @@ void show_nandroid_advanced_restore_menu(const char* path)
                                 "",
                                 "Choose an image to restore",
                                 "first. The next menu will",
-                                "you more options.",
+                                "show you more options.",
                                 "",
                                 NULL
     };
@@ -860,6 +949,7 @@ void show_nandroid_menu()
 
     static char* list[] = { "backup",
                             "restore",
+                            "advanced backup",
                             "advanced restore",
                             "backup to internal sdcard",
                             "restore from internal sdcard",
@@ -895,9 +985,12 @@ void show_nandroid_menu()
             show_nandroid_restore_menu("/sdcard");
             break;
         case 2:
-            show_nandroid_advanced_restore_menu("/sdcard");
+            show_nandroid_advanced_backup_menu("/sdcard");
             break;
         case 3:
+            show_nandroid_advanced_restore_menu("/sdcard");
+            break;
+        case 4:
             {
                 char backup_path[PATH_MAX];
                 time_t t = time(NULL);
@@ -915,10 +1008,10 @@ void show_nandroid_menu()
                 nandroid_backup(backup_path);
             }
             break;
-        case 4:
+        case 5:
             show_nandroid_restore_menu("/emmc");
             break;
-        case 5:
+        case 6:
             show_nandroid_advanced_restore_menu("/emmc");
             break;
     }
@@ -1284,7 +1377,7 @@ void handle_failure(int ret)
         return;
     mkdir("/sdcard/clockworkmod", S_IRWXU);
     __system("cp /tmp/recovery.log /sdcard/clockworkmod/recovery.log");
-    ui_print("/tmp/recovery.log was copied to /sdcard/clockworkmod/recovery.log. Please open ROM Manager to report the issue.\n");
+    ui_print("/tmp/recovery.log was copied to /sdcard/clockworkmod/recovery.log.\nPlease open ROM Manager to report the issue.\n");
 }
 
 int is_path_mounted(const char* path) {
@@ -1311,6 +1404,21 @@ int is_path_mounted(const char* path) {
         return 1;
     }
     return 0;
+}
+
+char* battery_level_message()
+{
+    char level[3];
+    FILE* battery = fopen("/sys/class/power_supply/battery/capacity","r");
+    fgets(level, 4, battery);
+    fclose(battery);
+
+    char* battmsg;
+    char* battmsg1 = (atoi(level) < 15 ? "Your battery level is very low (" : "(Current battery level: ");
+    char* battmsg2 = "%)";
+    asprintf(&battmsg, "%s%s%s", battmsg1, level, battmsg2);
+
+    return battmsg;
 }
 
 int has_datadata() {

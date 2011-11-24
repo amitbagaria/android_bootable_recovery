@@ -120,4 +120,6 @@ typedef struct {
     const char* fs_options2;
 } Volume;
 
+int try_mount(const char* device, const char* mount_point, const char* fs_type, const char* fs_options);
+
 #endif  // RECOVERY_COMMON_H
