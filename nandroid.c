@@ -82,7 +82,7 @@ static void yaffs_callback(const char* filename)
     ui_reset_text_col();
 }
 
-static void compute_directory_stats(const char* directory, int reset_progress)
+static void compute_directory_stats(const char* directory)
 {
     char tmp[PATH_MAX];
     sprintf(tmp, "find '%s' | wc -l > /tmp/dircount", directory);
@@ -93,11 +93,8 @@ static void compute_directory_stats(const char* directory, int reset_progress)
     fclose(f);
     yaffs_files_count = 0;
     yaffs_files_total = atoi(count_text);
-    if (reset_progress)
-    {
-        ui_reset_progress();
-        ui_show_progress(1, 0);
-    }
+    ui_reset_progress();
+    ui_show_progress(1, 0);
 }
 
 typedef void (*file_event_callback)(const char* filename);
@@ -170,14 +167,14 @@ int nandroid_backup_partition_extended(const char* backup_path, const char* moun
     char* name = basename(mount_point);
 
     struct stat file_info;
-    int callback = stat("/sdcard/clockworkmod/.hidenandroidprogress", &file_info) == 0;
+    int callback = stat("/sdcard/clockworkmod/.hidenandroidprogress", &file_info) != 0;
     
     ui_print("Backing up %s...\n", name);
     if (0 != (ret = ensure_path_mounted(mount_point) != 0)) {
         ui_print("Can't mount %s!\n", mount_point);
         return ret;
     }
-    compute_directory_stats(mount_point, callback);
+    compute_directory_stats(mount_point);
     char tmp[PATH_MAX];
     scan_mounted_volumes();
     Volume *v = volume_for_path(mount_point);
@@ -232,7 +229,6 @@ int nandroid_backup_partition(const char* backup_path, const char* root) {
 int nandroid_backup(const char* backup_path)
 {
     ui_set_background(BACKGROUND_ICON_INSTALLING);
-    ui_show_progress(1, 0);
     
     if (ensure_path_mounted(backup_path) != 0) {
         return print_and_error("Can't mount backup path.\n");
@@ -259,11 +255,9 @@ int nandroid_backup(const char* backup_path)
 
     if (0 != (ret = nandroid_backup_partition(backup_path, "/boot")))
         return ret;
-    ui_set_progress(0.1f);
 
     if (0 != (ret = nandroid_backup_partition(backup_path, "/recovery")))
         return ret;
-    ui_set_progress(0.2f);
 
     Volume *vol = volume_for_path("/wimax");
     if (vol != NULL && 0 == stat(vol->device, &s))
@@ -277,21 +271,17 @@ int nandroid_backup(const char* backup_path)
         if (0 != ret)
             return print_and_error("Error while dumping WiMAX image!\n");
     }
-    ui_set_progress(0.3f);
 
     if (0 != (ret = nandroid_backup_partition(backup_path, "/system")))
         return ret;
-    ui_set_progress(0.4f);
 
     if (0 != (ret = nandroid_backup_partition(backup_path, "/data")))
         return ret;
-    ui_set_progress(0.5f);
 
     if (has_datadata()) {
         if (0 != (ret = nandroid_backup_partition(backup_path, "/datadata")))
             return ret;
     }
-    ui_set_progress(0.6f);
 
     if (0 != stat("/sdcard/.android_secure", &s))
     {
@@ -302,11 +292,9 @@ int nandroid_backup(const char* backup_path)
         if (0 != (ret = nandroid_backup_partition_extended(backup_path, "/sdcard/.android_secure", 0)))
             return ret;
     }
-    ui_set_progress(0.7f);
 
     if (0 != (ret = nandroid_backup_partition_extended(backup_path, "/cache", 0)))
         return ret;
-    ui_set_progress(0.8f);
 
     vol = volume_for_path("/sd-ext");
     if (vol != NULL && 0 == stat(vol->device, &s))
@@ -316,7 +304,6 @@ int nandroid_backup(const char* backup_path)
         else if (0 != (ret = nandroid_backup_partition(backup_path, "/sd-ext")))
             return ret;
     }
-    ui_set_progress(0.9f);
 
     ui_print("Generating md5 sum...\n");
     sprintf(tmp, "nandroid-md5.sh %s", backup_path);
@@ -324,7 +311,6 @@ int nandroid_backup(const char* backup_path)
         ui_print("Error while generating md5 sum!\n");
         return ret;
     }
-    ui_set_progress(1.0f);
     
     sync();
     ui_set_background(BACKGROUND_ICON_CLOCKWORK);
