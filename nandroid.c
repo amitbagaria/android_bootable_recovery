@@ -250,7 +250,7 @@ int nandroid_backup(const char* backup_path)
     uint64_t sdcard_free = bavail * bsize;
     uint64_t sdcard_free_mb = sdcard_free / (uint64_t)(1024 * 1024);
     ui_print("SD Card space free: %lluMB\n", sdcard_free_mb);
-    if (sdcard_free_mb < 150)
+    if (sdcard_free_mb < 1000)
         ui_print("There may not be enough free space to complete backup... continuing...\n");
     
     char tmp[PATH_MAX];
@@ -355,11 +355,8 @@ int nandroid_advanced_backup(const char* backup_path, int boot, int system, int 
     uint64_t sdcard_free = bavail * bsize;
     uint64_t sdcard_free_mb = sdcard_free / (uint64_t)(1024 * 1024);
     ui_print("(Free space: %lluMB)\n", sdcard_free_mb);
-
-    if (sdcard_free_mb < (data ? 2000 : 1000)) {
-        if (!confirm_simple("There may not be enough free space. Continue?", "Yes - Continue backup"))
-            return print_and_error("Backup aborted.\n");
-    }
+    if (sdcard_free_mb < 1000)
+        ui_print("There may not be enough free space to complete backup... continuing...\n");
 
     char tmp[PATH_MAX];
     sprintf(tmp, "mkdir -p %s", backup_path);
@@ -394,7 +391,7 @@ int nandroid_advanced_backup(const char* backup_path, int boot, int system, int 
 
     if (0 == stat("/sdcard/.android_secure", &s))
     {
-        if (0 != (ret = nandroid_backup_partition_extended(backup_path, "/sdcard/.android_secure", 0)))
+        if (data && 0 != (ret = nandroid_backup_partition_extended(backup_path, "/sdcard/.android_secure", 0)))
             return ret;
     }
 

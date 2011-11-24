@@ -796,6 +796,9 @@ void show_nandroid_advanced_backup_menu(const char* path)
     else
         backup_list[4] = 0;
 
+    list[4 + sdext] = "Perform Backup";
+    list[5 + sdext] = NULL;
+
     int cont = 1;
     for (;cont;) {
         if (backup_list[0] == 1)
@@ -836,15 +839,16 @@ void show_nandroid_advanced_backup_menu(const char* path)
                 break;
             case 3: backup_list[3] = !backup_list[3];
                 break;
-            case 4: backup_list[4] = !backup_list[4];
+            case 4: 
+                if (sdext == 1)
+                    backup_list[4] = !backup_list[4];
+                else
+                    cont = 0;
                 break;
             default: cont = 0;
                 break;
         }
     }
-
-    list[4 + sdext] = "Perform Backup";
-    list[5 + sdext] = NULL;
 
     char backup_path[PATH_MAX];
     time_t t = time(NULL);
@@ -1033,6 +1037,7 @@ void show_advanced_menu()
     };
 
     static char* list[] = { "Reboot Recovery",
+                            "Reboot Download",
                             "Wipe Dalvik Cache",
                             "Wipe Battery Stats",
                             "Report Error",
@@ -1062,6 +1067,11 @@ void show_advanced_menu()
             }
             case 1:
             {
+                reboot_wrapper("download");
+                break;
+            }
+            case 2:
+            {
                 if (0 != ensure_path_mounted("/data"))
                     break;
                 ensure_path_mounted("/cache");
@@ -1078,18 +1088,18 @@ void show_advanced_menu()
                 //ensure_path_unmounted("/data");
                 break;
             }
-            case 2:
+            case 3:
             {
                 if (confirm_selection( "Confirm wipe?", "Yes - Wipe Battery Stats"))
                     wipe_battery_stats();
                 break;
             }
-            case 3:
+            case 4:
             {
                 handle_failure(1);
                 break;
             }
-            case 4:
+            case 5:
             {
                 ui_print("Outputting key codes.\n");
                 ui_print("Go back to end debugging.\n");
@@ -1104,12 +1114,12 @@ void show_advanced_menu()
                 while (action != GO_BACK);
                 break;
             }
-            case 5:
+            case 6:
             {
                 ui_printlogtail(12);
                 break;
             }
-            case 6:
+            case 7:
             {
                 static char* ext_sizes[] = { "128M",
                                              "256M",
@@ -1152,7 +1162,7 @@ void show_advanced_menu()
                     ui_print("An error occured while partitioning your SD Card. Please see /tmp/recovery.log for more details.\n");
                 break;
             }
-            case 7:
+            case 8:
             {
                 ensure_path_mounted("/system");
                 ensure_path_mounted("/data");
@@ -1161,7 +1171,7 @@ void show_advanced_menu()
                 ui_print("Done!\n");
                 break;
             }
-            case 8:
+            case 9:
             {
                 static char* ext_sizes[] = { "128M",
                                              "256M",
