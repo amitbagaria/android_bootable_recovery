@@ -649,38 +649,52 @@ sdcard_directory(const char* path) {
 
 static void
 wipe_data(int confirm) {
-    if (confirm) {
-        static char** title_headers = NULL;
 
-    char* battmsg = battery_level_message();
+  struct stat info;
+  if (0 == stat("/sdcard/clockworkmod/.no_confirm", &info))
+       confirm = 0;
 
-        if (title_headers == NULL) {
-            char* headers[] = { "Confirm wipe of all user data?",
-                                battmsg,
-                                "  THIS CAN NOT BE UNDONE.",
-                                "",
-                                NULL };
-            title_headers = prepend_title((const char**)headers);
-        }
+	if (confirm) {
+    static char** title_headers = NULL;
 
-        char* items[] = { " No",
-                          " No",
-                          " No",
-                          " No",
-                          " No",
-                          " No",
-                          " No",
-                          " Yes -- delete all user data",   // [7]
-                          " No",
-                          " No",
-                          " No",
-                          NULL };
-
-        int chosen_item = get_menu_selection(title_headers, items, 1, 0);
-        if (chosen_item != 7) {
-            return;
-        }
-    }
+		char* battmsg = battery_level_message();
+	
+		if (title_headers == NULL) {
+			char* headers[] = { "Confirm wipe of all user data?",
+								battmsg,
+								"  THIS CAN NOT BE UNDONE.",
+								"",
+								NULL };
+			title_headers = prepend_title((const char**)headers);
+		}
+		if (0 == stat("/sdcard/clockworkmod/.one_confirm", &info)) {
+			char* items[] = { "No",
+							  "Yes -- delete all user data", // [1]
+							  NULL };
+			int chosen_item = get_menu_selection(title_headers, items, 1, 0);
+			if (chosen_item != 1)
+			   return;
+		}
+		else {
+			char* items[] = { " No",
+							  " No",
+							  " No",
+							  " No",
+							  " No",
+							  " No",
+							  " No",
+							  " Yes -- delete all user data",   // [7]
+							  " No",
+							  " No",
+							  " No",
+							  NULL };
+	
+			int chosen_item = get_menu_selection(title_headers, items, 1, 0);
+			if (chosen_item != 7) {
+				return;
+			}
+		}
+  }
 
     ui_print("\n-- Wiping data...\n");
     device_wipe_data();
@@ -695,6 +709,87 @@ wipe_data(int confirm) {
         erase_volume("/sd-ext");
     erase_volume("/sdcard/.android_secure");
     ui_print("Data wipe complete.\n");
+}
+
+void show_wipe_menu()
+{
+    static char* headers[] = {  "Wipe Menu",
+                                "",
+                                NULL
+    };
+
+    static char* list[] = { "Wipe data (factory reset)",
+                            "Wipe cache",
+                            "Wipe dalvik-cache",
+                            "Wipe battery stats",
+                            NULL
+    };
+
+    for (;;)
+    {
+        int chosen_item = get_menu_selection(headers, list, 0, 0);
+        if (chosen_item == GO_BACK)
+            break;
+        switch (chosen_item)
+        {
+            case 0:
+                wipe_data(ui_text_visible());
+                if (!ui_text_visible()) return;
+                break;
+
+            case 1:
+                if (confirm_selection("Are you sure you want to wipe cache?", "Yes - Wipe Cache"))
+                {
+                    ui_print("\n-- Wiping cache...\n");
+                    erase_volume("/cache");
+                    ui_print("Cache wipe complete.\n");
+                    if (!ui_text_visible()) return;
+                }
+                break;
+            case 2:
+            {
+                if (confirm_selection( "Are you sure you want to wipe dalvik-cache?", "Yes - Wipe Dalvik Cache")) 
+                {
+                    if (0 != ensure_path_mounted("/data"))
+                    {
+                        ui_print("Error mounting /data!\n");
+                        break;
+                    }
+                    ensure_path_mounted("/cache");
+                    __system("rm -r /data/dalvik-cache");
+                    __system("rm -r /cache/dalvik-cache");
+                    struct stat st;
+                    Volume *vol = volume_for_path("/sd-ext");
+                    if (vol == NULL || 0 != stat(vol->device, &st))
+                    {
+                        ensure_path_mounted("/sd-ext");
+                        __system("rm -r /sd-ext/dalvik-cache");
+                    }
+                    ui_print("Dalvik Cache wiped.\n");
+                }
+                //ensure_path_unmounted("/data");
+                break;
+            }
+            case 3:
+            {
+                if (confirm_selection( "Are you sure you want to wipe battery stats?", "Yes - Wipe Battery Stats"))
+                {
+                    wipe_battery_stats();
+                    ui_print("Battery stats wipe complete.\n");
+                }
+                break;
+            }
+        }
+		ui_reset_progress();
+    }
+}
+
+void wipe_battery_stats()
+{
+    ensure_path_mounted("/data");
+    remove("/data/system/batterystats.bin");
+    ensure_path_unmounted("/data");
+    ui_print("Battery Stats wiped.\n");
 }
 
 static void
@@ -719,21 +814,6 @@ prompt_and_wait() {
                 poweroff=0;
                 return;
 
-            case ITEM_WIPE_DATA:
-                wipe_data(ui_text_visible());
-                if (!ui_text_visible()) return;
-                break;
-
-            case ITEM_WIPE_CACHE:
-                if (confirm_selection("Confirm wipe?", "Yes - Wipe Cache"))
-                {
-                    ui_print("\n-- Wiping cache...\n");
-                    erase_volume("/cache");
-                    ui_print("Cache wipe complete.\n");
-                    if (!ui_text_visible()) return;
-                }
-                break;
-
             case ITEM_APPLY_SDCARD:
                 if (confirm_selection("Confirm install?", "Yes - Install /sdcard/update.zip"))
                 {
@@ -748,6 +828,9 @@ prompt_and_wait() {
                         ui_print("\nInstall from sdcard complete.\n");
                     }
                 }
+                break;
+            case ITEM_WIPE:
+                show_wipe_menu();
                 break;
             case ITEM_INSTALL_ZIP:
                 show_install_update_menu();

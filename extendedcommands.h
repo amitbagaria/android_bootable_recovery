@@ -62,6 +62,8 @@ void show_install_update_menu();
 
 int confirm_selection(const char* title, const char* confirm);
 
+int confirm_simple(const char* title, const char* confirm);
+
 char* battery_level_message();
 
 int run_and_remove_extendedcommand();

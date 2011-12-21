@@ -435,7 +435,22 @@ int confirm_selection(const char* title, const char* confirm)
 		int chosen_item = get_menu_selection(confirm_headers, items, 0, 0);
 		return chosen_item == 7;
 	}
-	}
+}
+
+int confirm_simple(const char* title, const char* confirm)
+{
+    struct stat info;
+    if (0 == stat("/sdcard/clockworkmod/.no_confirm", &info))
+        return 1;
+
+    char* confirm_headers[]  = {  title, "", NULL };
+    char* items[] = { "No",
+                      confirm,
+                      NULL };
+
+    int chosen_item = get_menu_selection(confirm_headers, items, 0, 0);
+    return chosen_item == 1;
+}
 
 #define MKE2FS_BIN      "/sbin/mke2fs"
 #define TUNE2FS_BIN     "/sbin/tune2fs"
@@ -755,7 +770,7 @@ void show_partition_menu()
             FormatMenuEntry* e = &format_menue[chosen_item];
             Volume* v = e->v;
 
-            sprintf(confirm_string, "%s - %s", v->mount_point, confirm_format);
+            sprintf(confirm_string, "%s %s?", confirm_format, v->mount_point);
 
             if (!confirm_selection(confirm_string, confirm))
                 continue;
@@ -867,7 +882,7 @@ void show_nandroid_advanced_backup_menu(const char* path)
 void show_nandroid_advanced_restore_menu(const char* path)
 {
     if (ensure_path_mounted(path) != 0) {
-        LOGE ("Can't mount sdcard\n");
+        LOGE("Can't mount %s\n", path);
         return;
     }
 
@@ -1021,14 +1036,6 @@ void show_nandroid_menu()
     }
 }
 
-void wipe_battery_stats()
-{
-    ensure_path_mounted("/data");
-    remove("/data/system/batterystats.bin");
-    ensure_path_unmounted("/data");
-    ui_print("Battery Stats wiped.\n");
-}
-
 void show_advanced_menu()
 {
     static char* headers[] = {  "Advanced and Debugging Menu",
@@ -1038,8 +1045,6 @@ void show_advanced_menu()
 
     static char* list[] = { "Reboot Recovery",
                             "Reboot Download",
-                            "Wipe Dalvik Cache",
-                            "Wipe Battery Stats",
                             "Report Error",
                             "Key Test",
                             "Show Log",
@@ -1072,34 +1077,10 @@ void show_advanced_menu()
             }
             case 2:
             {
-                if (0 != ensure_path_mounted("/data"))
-                    break;
-                ensure_path_mounted("/cache");
-                if (confirm_selection( "Confirm wipe?", "Yes - Wipe Dalvik Cache")) {
-                    __system("rm -r /data/dalvik-cache");
-                    __system("rm -r /cache/dalvik-cache");
-                    struct stat st;
-                    Volume *vol = volume_for_path("/sd-ext");
-                    if (vol == NULL || 0 != stat(vol->device, &st)) {
-                    __system("rm -r /sd-ext/dalvik-cache");
-                    }
-                    ui_print("Dalvik Cache wiped.\n");
-                }
-                //ensure_path_unmounted("/data");
-                break;
-            }
-            case 3:
-            {
-                if (confirm_selection( "Confirm wipe?", "Yes - Wipe Battery Stats"))
-                    wipe_battery_stats();
-                break;
-            }
-            case 4:
-            {
                 handle_failure(1);
                 break;
             }
-            case 5:
+            case 3:
             {
                 ui_print("Outputting key codes.\n");
                 ui_print("Go back to end debugging.\n");
@@ -1114,13 +1095,15 @@ void show_advanced_menu()
                 while (action != GO_BACK);
                 break;
             }
-            case 6:
+            case 4:
             {
                 ui_printlogtail(12);
                 break;
             }
-            case 7:
+            case 5:
             {
+              if (confirm_selection("All data on the SD card will be wiped. Continue?", "Yes - Partition"))
+              {
                 static char* ext_sizes[] = { "128M",
                                              "256M",
                                              "512M",
@@ -1160,9 +1143,10 @@ void show_advanced_menu()
                     ui_print("Done!\n");
                 else
                     ui_print("An error occured while partitioning your SD Card. Please see /tmp/recovery.log for more details.\n");
-                break;
+              }
+              break;
             }
-            case 8:
+            case 6:
             {
                 ensure_path_mounted("/system");
                 ensure_path_mounted("/data");
@@ -1171,8 +1155,10 @@ void show_advanced_menu()
                 ui_print("Done!\n");
                 break;
             }
-            case 9:
+            case 7:
             {
+                if (confirm_selection("All data on the internal SD card will be wiped. Continue?", "Yes - Partition"))
+                {
                 static char* ext_sizes[] = { "128M",
                                              "256M",
                                              "512M",
@@ -1212,6 +1198,7 @@ void show_advanced_menu()
                     ui_print("Done!\n");
                 else
                     ui_print("An error occured while partitioning your Internal SD Card. Please see /tmp/recovery.log for more details.\n");
+                }
                 break;
             }
         }
