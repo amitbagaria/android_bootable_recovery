@@ -1238,7 +1238,7 @@ void show_cfroot_menu()
                 ui_print("You are now rooted :)\n"); 
                 break;
             }
-            case 2:
+            case 1:
             {
                 remove("/system/app/Superuser.apk");
                 remove("/system/xbin/su");
